@@ -1,17 +1,50 @@
 let currentSessionId = null;
 
+function setStep(stepNum) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`step-${i}`);
+    if (el) {
+      if (i < stepNum) {
+        el.className = "step-item completed";
+      } else if (i === stepNum) {
+        el.className = "step-item active";
+      } else {
+        el.className = "step-item";
+      }
+    }
+  }
+}
+
+function updateMetrics(target, openPortsCount, proposalsCount) {
+  document.getElementById("metric-target").textContent = target || "None";
+  document.getElementById("metric-ports").textContent = openPortsCount !== undefined ? openPortsCount : 0;
+  document.getElementById("metric-vulns").textContent = proposalsCount !== undefined ? proposalsCount : 0;
+  
+  let score = 0;
+  if (proposalsCount > 0) score = Math.min(proposalsCount * 25 + 15, 95);
+  document.getElementById("metric-score").textContent = `${score} / 100`;
+}
+
 async function runScan() {
   const target = document.getElementById("target-input").value.trim();
-  const ports = document.getElementById("ports-input").value.trim() || "1-1000";
+  const ports = document.getElementById("ports-input").value.trim() || "";
   const isAuto = document.getElementById("auto-mode").checked;
   const out = document.getElementById("scan-output");
+
+  if (!target) {
+    alert("Please enter a valid target domain or IP.");
+    return;
+  }
+
+  updateMetrics(target, 0, 0);
+  setStep(1);
 
   if (isAuto) {
     runAutomatedPipeline(target, ports);
     return;
   }
 
-  out.textContent = "Scanning... this can take a minute.";
+  out.textContent = `[+] Initiating native Python network & port inspection for ${target}...\n[+] Scanning sockets & banner responses...`;
 
   const resp = await fetch("/api/scan", {
     method: "POST",
@@ -21,24 +54,44 @@ async function runScan() {
   const data = await resp.json();
 
   if (data.error) {
-    out.textContent = "Error: " + data.error;
+    out.textContent = "[-] Error during scan: " + data.error;
     return;
   }
 
   currentSessionId = data.session_id;
-  out.textContent = JSON.stringify(data.asset_profile, null, 2);
+  const openSvcs = data.asset_profile.open_services || [];
+  updateMetrics(target, openSvcs.length, 0);
+
+  let outputText = `[+] Native Network Inspection Complete for ${target}\n`;
+  outputText += `[+] Engine: ${data.asset_profile.scan_engine || 'Native Python Inspector'}\n`;
+  outputText += `[+] Open ports discovered: ${openSvcs.length}\n\n`;
+  
+  openSvcs.forEach(svc => {
+    outputText += `  - Port ${svc.port}/${svc.protocol}: Service [${svc.service}] Product: [${svc.product}] Version: [${svc.version}]\n`;
+  });
+
+  out.textContent = outputText;
   document.getElementById("advise-section").style.display = "block";
+  setStep(2);
 }
 
 async function getAdvice() {
+  setStep(2);
   const resp = await fetch("/api/advise", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: currentSessionId }),
   });
   const data = await resp.json();
-  renderProposals(data.proposals || []);
+  const proposals = data.proposals || [];
+  
+  const target = document.getElementById("target-input").value.trim();
+  const portsCount = parseInt(document.getElementById("metric-ports").textContent) || 0;
+  updateMetrics(target, portsCount, proposals.length);
+
+  renderProposals(proposals);
   document.getElementById("report-section").style.display = "block";
+  setStep(3);
 }
 
 function renderProposals(proposals) {
@@ -47,36 +100,48 @@ function renderProposals(proposals) {
 
   proposals.forEach((p) => {
     const div = document.createElement("div");
-    div.className = "proposal tier-" + p.tier;
+    div.className = "proposal-card";
 
+    let severityClass = (p.severity || "low").toLowerCase();
+    
     let approvalControls = "";
     if (p.approval_type === "one_click" || p.approval_type === "one_click_with_warning") {
       approvalControls = `
-        <button onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', false)">Approve & Run</button>
-        <button class="reject" onclick="reject('${p.proposed_tool_id}')">Reject</button>`;
+        <button class="btn-primary" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', false)">Approve & Run Verification</button>
+        <button class="btn-danger" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">Reject</button>`;
     } else if (p.approval_type === "typed_confirmation") {
       approvalControls = `
-        <p class="danger">⚠ This action touches real data/credentials. Type the target to confirm:</p>
-        <input type="text" id="confirm-${p.proposed_tool_id}" placeholder="Type target exactly">
-        <button onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', true)">Confirm & Run</button>
-        <button class="reject" onclick="reject('${p.proposed_tool_id}')">Reject</button>`;
+        <p style="color: var(--severity-high); font-weight: 600; font-size: 13px;">⚠️ Tier-3 Action: Type target hostname to confirm execution:</p>
+        <input type="text" id="confirm-${p.proposed_tool_id}" placeholder="Type target exactly" style="margin-right: 8px;">
+        <button class="btn-primary" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', true)">Confirm & Run</button>
+        <button class="btn-danger" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">Reject</button>`;
     } else if (p.approval_type === "not_executable") {
-      approvalControls = `<p class="manual-note">This step is manual-only — Knull will not auto-execute it. See recommendation below.</p>`;
+      approvalControls = `<p style="color: var(--severity-medium); font-style: italic; font-size: 13px;">Manual Only Step — Knull will not auto-execute this tool.</p>`;
     }
 
     div.innerHTML = `
-      <h3>${p.finding_summary}</h3>
-      <p><strong>Severity:</strong> ${p.severity} | <strong>Tier:</strong> ${p.tier} (${p.tier_label})</p>
-      <p><strong>Proposed tool:</strong> ${p.proposed_tool_id}</p>
-      <p><strong>Rationale:</strong> ${p.rationale}</p>
-      <div class="controls">${approvalControls}</div>
-      <pre id="result-${p.proposed_tool_id}"></pre>
+      <div class="proposal-header">
+        <span class="proposal-title">${p.finding_summary}</span>
+        <span class="badge ${severityClass}">${p.severity}</span>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin: 6px 0;">
+        <strong>Proposed Verification:</strong> <code style="color: var(--accent-cyan);">${p.proposed_tool_id}</code> | <strong>Tier:</strong> ${p.tier} (${p.tier_label})
+      </p>
+      <p style="font-size: 14px; margin: 8px 0; line-height: 1.4;">${p.rationale}</p>
+      <div style="margin-top: 12px;">${approvalControls}</div>
+      <div class="terminal-window" style="margin-top: 12px;">
+        <div class="terminal-header">
+          <span class="terminal-title">verification-output [${p.proposed_tool_id}]</span>
+        </div>
+        <pre id="result-${p.proposed_tool_id}" class="terminal-body">Ready for verification...</pre>
+      </div>
     `;
     container.appendChild(div);
   });
 }
 
 async function approveAndRun(toolId, template, needsTypedConfirm) {
+  setStep(3);
   await fetch("/api/approve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -100,13 +165,20 @@ async function approveAndRun(toolId, template, needsTypedConfirm) {
     payload.typed_confirmation = confirmInput ? confirmInput.value.trim() : "";
   }
 
+  const resultBox = document.getElementById(`result-${toolId}`);
+  if (resultBox) {
+    resultBox.textContent = `[+] Executing active inspection engine for '${toolId}'...`;
+  }
+
   const resp = await fetch("/api/execute", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await resp.json();
-  document.getElementById(`result-${toolId}`).textContent = JSON.stringify(data, null, 2);
+  if (resultBox) {
+    resultBox.textContent = data.output || JSON.stringify(data, null, 2);
+  }
 }
 
 async function reject(toolId) {
@@ -120,29 +192,21 @@ async function reject(toolId) {
       approved_by: "operator",
     }),
   });
-  document.getElementById(`result-${toolId}`).textContent = "Rejected by operator.";
-}
-
-async function generateReport() {
-  const engagementName = document.getElementById("engagement-name").value.trim();
-  const resp = await fetch("/api/report", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: currentSessionId, engagement_name: engagementName }),
-  });
-  const data = await resp.json();
-  document.getElementById("report-output").textContent = "Report saved: " + data.report_path;
+  const resultBox = document.getElementById(`result-${toolId}`);
+  if (resultBox) {
+    resultBox.textContent = "[-] Action rejected by operator.";
+  }
 }
 
 async function runAutomatedPipeline(target, ports) {
   const status = document.getElementById("status-indicator");
   const out = document.getElementById("scan-output");
   
-  // Reset UI
+  setStep(1);
   status.style.display = "block";
-  status.textContent = "Status: Scanning target...";
-  status.style.color = "#8b949e";
-  out.textContent = "Running automated scan... please wait.";
+  status.textContent = "Status: Executing native Python network & socket inspection...";
+  status.style.color = "var(--accent-cyan)";
+  out.textContent = `[+] Autonomous Pipeline Started for target: ${target}\n[+] Step 1: Performing concurrent socket scan & banner grabbing...`;
   
   document.getElementById("advise-section").style.display = "none";
   document.getElementById("report-section").style.display = "none";
@@ -156,16 +220,25 @@ async function runAutomatedPipeline(target, ports) {
   const scanData = await scanResp.json();
   if (scanData.error) {
     status.textContent = "Status: Scan failed.";
-    status.style.color = "#da3633";
+    status.style.color = "var(--severity-critical)";
     out.textContent = "Error: " + scanData.error;
     return;
   }
   
   currentSessionId = scanData.session_id;
-  out.textContent = JSON.stringify(scanData.asset_profile, null, 2);
+  const openSvcs = scanData.asset_profile.open_services || [];
+  updateMetrics(target, openSvcs.length, 0);
+
+  let outputText = `[+] Native Network Inspection Complete for ${target}\n`;
+  outputText += `[+] Open ports discovered: ${openSvcs.length}\n\n`;
+  openSvcs.forEach(svc => {
+    outputText += `  - Port ${svc.port}/${svc.protocol}: Service [${svc.service}] Product: [${svc.product}] Version: [${svc.version}]\n`;
+  });
+  out.textContent = outputText;
   
   // 2. Get AI proposals
-  status.textContent = "Status: Requesting AI suggestions...";
+  setStep(2);
+  status.textContent = "Status: Running AI threat triaging & NVD correlation...";
   const adviseResp = await fetch("/api/advise", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -174,32 +247,24 @@ async function runAutomatedPipeline(target, ports) {
   const adviseData = await adviseResp.json();
   const proposals = adviseData.proposals || [];
   
-  // Show proposals in UI so user can see it working
+  updateMetrics(target, openSvcs.length, proposals.length);
   renderProposals(proposals);
   document.getElementById("advise-section").style.display = "block";
   
   if (proposals.length === 0) {
-    status.textContent = "Status: No action proposed by AI.";
-    // Generate empty report
+    status.textContent = "Status: No vulnerabilities triaged.";
     await autoGenerateReport(target);
     return;
   }
   
-  // 3. Auto execute each proposal (Tiers 1, 2, 3)
+  // 3. Auto execute each proposal
+  setStep(3);
   for (let i = 0; i < proposals.length; i++) {
     const p = proposals[i];
-    status.textContent = `Status: Executing tool ${i+1} of ${proposals.length} (${p.proposed_tool_id})...`;
+    status.textContent = `Status: Running active inspection ${i+1} of ${proposals.length} (${p.proposed_tool_id})...`;
     
-    // Check if it's executable (tier 1, 2, 3)
-    if (p.approval_type === "not_executable") {
-      const resultBox = document.getElementById(`result-${p.proposed_tool_id}`);
-      if (resultBox) {
-        resultBox.textContent = "Skipped automatic execution (Manual-only tool tier).";
-      }
-      continue;
-    }
+    if (p.approval_type === "not_executable") continue;
     
-    // Automatically approve
     await fetch("/api/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -211,7 +276,6 @@ async function runAutomatedPipeline(target, ports) {
       }),
     });
     
-    // Prepare execution payload
     const payload = {
       session_id: currentSessionId,
       tool_id: p.proposed_tool_id,
@@ -219,45 +283,38 @@ async function runAutomatedPipeline(target, ports) {
       approved: true,
     };
     
-    // Auto-fill confirmation for tier 3
     if (p.approval_type === "typed_confirmation") {
-      const confirmInput = document.getElementById(`confirm-${p.proposed_tool_id}`);
-      if (confirmInput) {
-        confirmInput.value = target;
-      }
       payload.typed_confirmation = target;
     }
     
     const resultBox = document.getElementById(`result-${p.proposed_tool_id}`);
     if (resultBox) {
-      resultBox.textContent = "Executing...";
+      resultBox.textContent = `[+] Executing inspection '${p.proposed_tool_id}'...`;
     }
     
-    // Execute
     const execResp = await fetch("/api/execute", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const execData = await execResp.json();
-    
     if (resultBox) {
-      resultBox.textContent = JSON.stringify(execData, null, 2);
+      resultBox.textContent = execData.output || JSON.stringify(execData, null, 2);
     }
   }
   
   // 4. Auto-generate report
-  status.textContent = "Status: Generating final report...";
+  setStep(4);
+  status.textContent = "Status: Compiling executive report...";
   await autoGenerateReport(target);
 }
 
 async function autoGenerateReport(target) {
+  setStep(4);
   const status = document.getElementById("status-indicator");
-  const reportName = `Automated Scan - ${target}`;
+  const reportName = `Autonomous Audit - ${target}`;
   const reportInput = document.getElementById("engagement-name");
-  if (reportInput) {
-    reportInput.value = reportName;
-  }
+  if (reportInput) reportInput.value = reportName;
   
   const resp = await fetch("/api/report", {
     method: "POST",
@@ -266,9 +323,21 @@ async function autoGenerateReport(target) {
   });
   const data = await resp.json();
   
-  status.style.color = "#238636";
-  status.textContent = "Status: Pipeline complete! Report generated.";
+  status.style.color = "#10b981";
+  status.textContent = "Status: Audit Complete! Executive Report Generated.";
   
   document.getElementById("report-section").style.display = "block";
-  document.getElementById("report-output").textContent = "Report saved: " + data.report_path;
+  document.getElementById("report-output").textContent = "Executive Report Saved: " + data.report_path;
+}
+
+async function generateReport() {
+  setStep(4);
+  const engagementName = document.getElementById("engagement-name").value.trim();
+  const resp = await fetch("/api/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: currentSessionId, engagement_name: engagementName }),
+  });
+  const data = await resp.json();
+  document.getElementById("report-output").textContent = "Executive Report Saved: " + data.report_path;
 }
