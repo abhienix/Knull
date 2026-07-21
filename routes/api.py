@@ -12,13 +12,26 @@ Flask blueprint implementing the full loop:
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 
-from core import scanner, advisor, executor, scope, report
+from core import scanner, advisor, executor, scope, report, assistant
 
 api = Blueprint("api", __name__)
 
-# In-memory session store for this demo scaffold.
-# Swap for a real DB (SQLite/Postgres) before any multi-user or persistent use.
 SESSIONS = {}
+
+
+@api.route("/api/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_message = data.get("message", "").strip()
+    session_id = data.get("session_id")
+    history = data.get("history", [])
+
+    if not user_message:
+        return jsonify({"error": "Message content required"}), 400
+
+    current_session = SESSIONS.get(session_id) if session_id else None
+    res = assistant.chat_response(history, user_message, current_session)
+    return jsonify(res)
 
 
 @api.route("/api/scan", methods=["POST"])
