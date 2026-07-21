@@ -179,6 +179,25 @@ def run_native_python_tool_inspection(tool_id: str, target: str, action: dict, t
                 output_lines.append(f"  [!] Server Banner Disclosure: {r.headers['Server']}")
             if "X-Powered-By" in r.headers:
                 output_lines.append(f"  [!] Technology Disclosure (X-Powered-By): {r.headers['X-Powered-By']}")
+
+            # Cookie Security Attribute Audit
+            cookies = r.cookies
+            if cookies:
+                output_lines.append("  [+] Cookie Security Audit:")
+                for c in cookies:
+                    flags = []
+                    if c.secure: flags.append("Secure")
+                    else: flags.append("MISSING Secure")
+                    
+                    if c.has_nonstandard_attr("HttpOnly") or getattr(c, 'httponly', False): flags.append("HttpOnly")
+                    else: flags.append("MISSING HttpOnly")
+                    
+                    samesite = c.get_nonstandard_attr("SameSite") or "MISSING SameSite"
+                    flags.append(f"SameSite={samesite}")
+                    
+                    output_lines.append(f"    * Cookie '{c.name}': {', '.join(flags)}")
+            else:
+                output_lines.append("  [+] Cookie Security Audit: No cookies set by target.")
                 
         except Exception as e:
             output_lines.append(f"  [-] HTTP Request failed: {str(e)}")
