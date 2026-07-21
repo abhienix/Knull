@@ -3,112 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Knull - Enterprise Security Operations & Autonomous VAPT Console</title>
+<title>KNULL // AUDIT CONSOLE</title>
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+  <!-- Header with Glowing Red Skull -->
   <header>
-    <div class="brand-container">
-      <div class="brand-logo">K</div>
+    <div class="brand-row">
+      <!-- Red Glowing Skull SVG -->
+      <svg class="skull-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C7.03 2 3 6.03 3 11C3 13.84 4.32 16.37 6.38 18.04C6.77 18.35 7 18.83 7 19.33V20C7 21.1 7.9 22 9 22H15C16.1 22 17 21.1 17 20V19.33C17 18.83 17.23 18.35 17.62 18.04C19.68 16.37 21 13.84 21 11C21 6.03 16.97 2 12 2ZM9 10C8.17 10 7.5 9.33 7.5 8.5C7.5 7.67 8.17 7 9 7C9.83 7 10.5 7.67 10.5 8.5C10.5 9.33 9.83 10 9 10ZM15 10C14.17 10 13.5 9.33 13.5 8.5C13.5 7.67 14.17 7 15 7C15.83 7 16.5 7.67 16.5 8.5C16.5 9.33 15.83 10 15 10ZM10 17H14V19H10V17Z" fill="#ff003c"/>
+      </svg>
       <div>
-        <h1>Knull Operations Console</h1>
-        <p class="tagline">Autonomous Security Auditing, AI Triaging & Native Diagnostic Inspection Engine</p>
+        <h1 class="app-title">KNULL // AUDIT CONSOLE</h1>
+        <span class="app-subtitle">NATIVE NATIVE DIAGNOSTIC INSPECTION & RECON ENGINE</span>
       </div>
     </div>
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <span class="badge low" style="padding: 6px 12px; font-size: 12px;">SYSTEM READY</span>
+    <div>
+      <span class="badge-red" id="sys-status">SYS_ONLINE</span>
     </div>
   </header>
 
-  <main>
-    <!-- Metrics Dashboard Header -->
-    <div class="metrics-row">
-      <div class="metric-card">
-        <span class="metric-label">Target Host</span>
-        <span id="metric-target" class="metric-value accent" style="font-size: 18px;">None</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Open Ports Scanned</span>
-        <span id="metric-ports" class="metric-value">0</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Vulnerabilities Triaged</span>
-        <span id="metric-vulns" class="metric-value high">0</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Threat Score</span>
-        <span id="metric-score" class="metric-value critical">0 / 100</span>
-      </div>
-    </div>
-
-    <!-- Visual Pipeline Stepper -->
-    <div class="stepper-container">
-      <div id="step-1" class="step-item active">
-        <div class="step-number">1</div>
-        <div class="step-title">Network Inspection</div>
-      </div>
-      <div id="step-2" class="step-item">
-        <div class="step-number">2</div>
-        <div class="step-title">AI Advisor Triage</div>
-      </div>
-      <div id="step-3" class="step-item">
-        <div class="step-number">3</div>
-        <div class="step-title">Active Diagnostic Audit</div>
-      </div>
-      <div id="step-4" class="step-item">
-        <div class="step-number">4</div>
-        <div class="step-title">Executive Report</div>
-      </div>
-    </div>
-
-    <!-- Scan Control Section -->
-    <section id="scan-section" class="card">
-      <h2>🔍 Target Security Inspection</h2>
-      <div class="form-group" style="margin-top: 16px;">
-        <input id="target-input" type="text" placeholder="Target domain or IP (e.g. www.iacsd.com)">
-        <input id="ports-input" type="text" placeholder="Ports (e.g. 80,443,8080 or leave blank)" style="width: 220px;">
-        <button class="btn-primary" onclick="runScan()">Start Security Audit</button>
+  <!-- Mobile-Friendly Single Page Main Panel -->
+  <main class="container">
+    <div class="panel">
+      <!-- Target Input Control Bar -->
+      <div class="control-bar">
+        <input id="target-input" type="text" placeholder="Target Host or IP (e.g. www.iacsd.com)">
+        <input id="ports-input" type="text" placeholder="Ports (e.g. 80,443)" style="max-width: 140px;">
+        <button class="btn-red" onclick="runScan()">RUN AUDIT</button>
       </div>
 
-      <div style="margin-top: 14px;">
-        <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <input id="auto-mode" type="checkbox" style="width: auto; margin: 0;">
-          <span style="font-weight: 600; color: var(--accent-cyan);">Enable Full Autonomous Execution Mode</span>
-        </label>
-      </div>
+      <!-- Autonomous Pipeline Checkbox -->
+      <label class="auto-toggle">
+        <input id="auto-mode" type="checkbox" checked>
+        <span>ENABLE FULL AUTONOMOUS PIPELINE</span>
+      </label>
 
-      <div id="status-indicator" style="margin-top: 14px; font-weight: 600; color: var(--text-muted); display: none;"></div>
-
-      <div class="terminal-window">
-        <div class="terminal-header">
-          <div class="terminal-dots">
-            <div class="dot red"></div>
-            <div class="dot yellow"></div>
-            <div class="dot green"></div>
-          </div>
-          <span class="terminal-title">knull-inspector@recon-console:~</span>
+      <!-- Live CLI Terminal Output -->
+      <div class="cli-window">
+        <div class="cli-bar">
+          <span>KNULL_CLI_TERMINAL v2.0</span>
+          <span id="pipeline-status">READY</span>
         </div>
-        <pre id="scan-output" class="terminal-body">Waiting for target input...</pre>
+        <pre id="scan-output" class="cli-body">> System initialized. Enter target host and click RUN AUDIT to begin.</pre>
       </div>
-    </section>
 
-    <!-- AI Advisory Section -->
-    <section id="advise-section" class="card" style="display:none;">
-      <h2>🧠 AI Threat Triaging & Advisory</h2>
-      <p style="color: var(--text-muted); font-size: 14px;">Review recommendations generated by AI based on real native inspection banners and NVD database correlation.</p>
-      <button class="btn-secondary" onclick="getAdvice()" style="margin-bottom: 16px;">Request AI Advisory Analysis</button>
-      <div id="proposals-list"></div>
-    </section>
-
-    <!-- Executive Report Section -->
-    <section id="report-section" class="card" style="display:none;">
-      <h2>📊 Executive Assessment Report</h2>
-      <div class="form-group" style="margin-top: 12px;">
-        <input id="engagement-name" type="text" placeholder="Engagement title">
-        <button class="btn-primary" onclick="generateReport()">Generate Final Report</button>
+      <!-- Findings List Drawer -->
+      <div id="advise-section" class="findings-container" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 14px; color: #fff;">[!] TRIAGED FINDINGS & ACTION PROPOSALS</h3>
+          <button class="btn-subtle" onclick="getAdvice()">RE-TRIAGE AI</button>
+        </div>
+        <div id="proposals-list"></div>
       </div>
-      <div id="report-output" style="margin-top: 14px; font-weight: 600; color: #10b981;"></div>
-    </section>
+
+      <!-- Final Executive Report Link -->
+      <div id="report-section" style="display:none; margin-top: 16px; padding: 12px; background: rgba(255, 0, 60, 0.08); border: 1px solid var(--red-border); border-radius: 8px;">
+        <div style="font-size: 12px; color: var(--red-primary); font-weight: 700; margin-bottom: 6px;">[+] EXECUTIVE AUDIT REPORT GENERATED</div>
+        <div id="report-output" style="font-size: 12px; color: #fff;"></div>
+      </div>
+    </div>
   </main>
 
   <script src="/static/js/app.js"></script>

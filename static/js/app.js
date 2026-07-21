@@ -1,28 +1,11 @@
 let currentSessionId = null;
 
-function setStep(stepNum) {
-  for (let i = 1; i <= 4; i++) {
-    const el = document.getElementById(`step-${i}`);
-    if (el) {
-      if (i < stepNum) {
-        el.className = "step-item completed";
-      } else if (i === stepNum) {
-        el.className = "step-item active";
-      } else {
-        el.className = "step-item";
-      }
-    }
+function setPipelineStatus(statusText, isError = false) {
+  const statusEl = document.getElementById("pipeline-status");
+  if (statusEl) {
+    statusEl.textContent = statusText;
+    statusEl.style.color = isError ? "#ff003c" : "#ff3355";
   }
-}
-
-function updateMetrics(target, openPortsCount, proposalsCount) {
-  document.getElementById("metric-target").textContent = target || "None";
-  document.getElementById("metric-ports").textContent = openPortsCount !== undefined ? openPortsCount : 0;
-  document.getElementById("metric-vulns").textContent = proposalsCount !== undefined ? proposalsCount : 0;
-  
-  let score = 0;
-  if (proposalsCount > 0) score = Math.min(proposalsCount * 25 + 15, 95);
-  document.getElementById("metric-score").textContent = `${score} / 100`;
 }
 
 async function runScan() {
@@ -32,19 +15,17 @@ async function runScan() {
   const out = document.getElementById("scan-output");
 
   if (!target) {
-    alert("Please enter a valid target domain or IP.");
+    alert("Please enter a valid target host or IP.");
     return;
   }
-
-  updateMetrics(target, 0, 0);
-  setStep(1);
 
   if (isAuto) {
     runAutomatedPipeline(target, ports);
     return;
   }
 
-  out.textContent = `[+] Initiating native Python network & port inspection for ${target}...\n[+] Scanning sockets & banner responses...`;
+  setPipelineStatus("SCANNING...");
+  out.textContent = `> Initiating native Python network & port inspection for ${target}...\n> Probing open ports and grabbing service banners...`;
 
   const resp = await fetch("/api/scan", {
     method: "POST",
@@ -54,29 +35,29 @@ async function runScan() {
   const data = await resp.json();
 
   if (data.error) {
+    setPipelineStatus("SCAN FAILED", true);
     out.textContent = "[-] Error during scan: " + data.error;
     return;
   }
 
   currentSessionId = data.session_id;
   const openSvcs = data.asset_profile.open_services || [];
-  updateMetrics(target, openSvcs.length, 0);
 
   let outputText = `[+] Native Network Inspection Complete for ${target}\n`;
   outputText += `[+] Engine: ${data.asset_profile.scan_engine || 'Native Python Inspector'}\n`;
-  outputText += `[+] Open ports discovered: ${openSvcs.length}\n\n`;
+  outputText += `[+] Discovered Open Ports: ${openSvcs.length}\n\n`;
   
   openSvcs.forEach(svc => {
     outputText += `  - Port ${svc.port}/${svc.protocol}: Service [${svc.service}] Product: [${svc.product}] Version: [${svc.version}]\n`;
   });
 
   out.textContent = outputText;
+  setPipelineStatus("RECON COMPLETE");
   document.getElementById("advise-section").style.display = "block";
-  setStep(2);
 }
 
 async function getAdvice() {
-  setStep(2);
+  setPipelineStatus("TRIAGING AI...");
   const resp = await fetch("/api/advise", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -84,14 +65,10 @@ async function getAdvice() {
   });
   const data = await resp.json();
   const proposals = data.proposals || [];
-  
-  const target = document.getElementById("target-input").value.trim();
-  const portsCount = parseInt(document.getElementById("metric-ports").textContent) || 0;
-  updateMetrics(target, portsCount, proposals.length);
 
   renderProposals(proposals);
+  setPipelineStatus("TRIAGE COMPLETE");
   document.getElementById("report-section").style.display = "block";
-  setStep(3);
 }
 
 function renderProposals(proposals) {
@@ -100,40 +77,38 @@ function renderProposals(proposals) {
 
   proposals.forEach((p) => {
     const div = document.createElement("div");
-    div.className = "proposal-card";
+    div.className = "finding-card";
 
-    let severityClass = (p.severity || "low").toLowerCase();
-    
     let approvalControls = "";
     if (p.approval_type === "one_click" || p.approval_type === "one_click_with_warning") {
       approvalControls = `
-        <button class="btn-primary" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', false)">Approve & Run Verification</button>
-        <button class="btn-danger" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">Reject</button>`;
+        <button class="btn-red" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', false)">EXECUTE DIAGNOSTIC</button>
+        <button class="btn-subtle" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">REJECT</button>`;
     } else if (p.approval_type === "typed_confirmation") {
       approvalControls = `
-        <p style="color: var(--severity-high); font-weight: 600; font-size: 13px;">⚠️ Tier-3 Action: Type target hostname to confirm execution:</p>
-        <input type="text" id="confirm-${p.proposed_tool_id}" placeholder="Type target exactly" style="margin-right: 8px;">
-        <button class="btn-primary" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', true)">Confirm & Run</button>
-        <button class="btn-danger" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">Reject</button>`;
+        <p style="color: var(--red-primary); font-weight: 600; font-size: 12px; margin-bottom: 6px;">[!] Tier-3 Action: Confirm target hostname:</p>
+        <input type="text" id="confirm-${p.proposed_tool_id}" placeholder="Type target exactly" style="margin-right: 8px; max-width: 200px;">
+        <button class="btn-red" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', true)">CONFIRM & EXECUTE</button>
+        <button class="btn-subtle" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">REJECT</button>`;
     } else if (p.approval_type === "not_executable") {
-      approvalControls = `<p style="color: var(--severity-medium); font-style: italic; font-size: 13px;">Manual Only Step — Knull will not auto-execute this tool.</p>`;
+      approvalControls = `<p style="color: var(--text-muted); font-style: italic; font-size: 12px;">Manual Step Only — Not auto-executed by Knull.</p>`;
     }
 
     div.innerHTML = `
-      <div class="proposal-header">
-        <span class="proposal-title">${p.finding_summary}</span>
-        <span class="badge ${severityClass}">${p.severity}</span>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="finding-title">${p.finding_summary}</span>
+        <span class="badge-red">${p.severity}</span>
       </div>
-      <p style="font-size: 13px; color: var(--text-muted); margin: 6px 0;">
-        <strong>Proposed Verification:</strong> <code style="color: var(--accent-cyan);">${p.proposed_tool_id}</code> | <strong>Tier:</strong> ${p.tier} (${p.tier_label})
+      <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0;">
+        <strong>Tool:</strong> <code style="color: var(--red-primary);">${p.proposed_tool_id}</code> | <strong>Tier:</strong> ${p.tier}
       </p>
-      <p style="font-size: 14px; margin: 8px 0; line-height: 1.4;">${p.rationale}</p>
-      <div style="margin-top: 12px;">${approvalControls}</div>
-      <div class="terminal-window" style="margin-top: 12px;">
-        <div class="terminal-header">
-          <span class="terminal-title">verification-output [${p.proposed_tool_id}]</span>
+      <p style="font-size: 13px; margin: 8px 0; color: #e2e8f0; line-height: 1.4;">${p.rationale}</p>
+      <div style="margin-top: 10px;">${approvalControls}</div>
+      <div class="cli-window" style="margin-top: 10px;">
+        <div class="cli-bar">
+          <span>OUTPUT // ${p.proposed_tool_id}</span>
         </div>
-        <pre id="result-${p.proposed_tool_id}" class="terminal-body">Ready for verification...</pre>
+        <pre id="result-${p.proposed_tool_id}" class="cli-body">> Standby for execution...</pre>
       </div>
     `;
     container.appendChild(div);
@@ -141,7 +116,7 @@ function renderProposals(proposals) {
 }
 
 async function approveAndRun(toolId, template, needsTypedConfirm) {
-  setStep(3);
+  setPipelineStatus("EXECUTING...");
   await fetch("/api/approve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -167,7 +142,7 @@ async function approveAndRun(toolId, template, needsTypedConfirm) {
 
   const resultBox = document.getElementById(`result-${toolId}`);
   if (resultBox) {
-    resultBox.textContent = `[+] Executing active inspection engine for '${toolId}'...`;
+    resultBox.textContent = `> Executing diagnostic inspection engine for '${toolId}'...`;
   }
 
   const resp = await fetch("/api/execute", {
@@ -179,6 +154,7 @@ async function approveAndRun(toolId, template, needsTypedConfirm) {
   if (resultBox) {
     resultBox.textContent = data.output || JSON.stringify(data, null, 2);
   }
+  setPipelineStatus("EXECUTION FINISHED");
 }
 
 async function reject(toolId) {
@@ -194,19 +170,15 @@ async function reject(toolId) {
   });
   const resultBox = document.getElementById(`result-${toolId}`);
   if (resultBox) {
-    resultBox.textContent = "[-] Action rejected by operator.";
+    resultBox.textContent = "> Action rejected by operator.";
   }
 }
 
 async function runAutomatedPipeline(target, ports) {
-  const status = document.getElementById("status-indicator");
   const out = document.getElementById("scan-output");
   
-  setStep(1);
-  status.style.display = "block";
-  status.textContent = "Status: Executing native Python network & socket inspection...";
-  status.style.color = "var(--accent-cyan)";
-  out.textContent = `[+] Autonomous Pipeline Started for target: ${target}\n[+] Step 1: Performing concurrent socket scan & banner grabbing...`;
+  setPipelineStatus("PIPELINE RUNNING");
+  out.textContent = `> Autonomous Pipeline Started for target: ${target}\n> Step 1: Performing concurrent socket scan & banner grabbing...`;
   
   document.getElementById("advise-section").style.display = "none";
   document.getElementById("report-section").style.display = "none";
@@ -219,26 +191,23 @@ async function runAutomatedPipeline(target, ports) {
   });
   const scanData = await scanResp.json();
   if (scanData.error) {
-    status.textContent = "Status: Scan failed.";
-    status.style.color = "var(--severity-critical)";
-    out.textContent = "Error: " + scanData.error;
+    setPipelineStatus("SCAN ERROR", true);
+    out.textContent = "[-] Error: " + scanData.error;
     return;
   }
   
   currentSessionId = scanData.session_id;
   const openSvcs = scanData.asset_profile.open_services || [];
-  updateMetrics(target, openSvcs.length, 0);
 
   let outputText = `[+] Native Network Inspection Complete for ${target}\n`;
-  outputText += `[+] Open ports discovered: ${openSvcs.length}\n\n`;
+  outputText += `[+] Discovered Open Ports: ${openSvcs.length}\n\n`;
   openSvcs.forEach(svc => {
     outputText += `  - Port ${svc.port}/${svc.protocol}: Service [${svc.service}] Product: [${svc.product}] Version: [${svc.version}]\n`;
   });
   out.textContent = outputText;
   
   // 2. Get AI proposals
-  setStep(2);
-  status.textContent = "Status: Running AI threat triaging & NVD correlation...";
+  setPipelineStatus("AI TRIAGING");
   const adviseResp = await fetch("/api/advise", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -247,21 +216,19 @@ async function runAutomatedPipeline(target, ports) {
   const adviseData = await adviseResp.json();
   const proposals = adviseData.proposals || [];
   
-  updateMetrics(target, openSvcs.length, proposals.length);
   renderProposals(proposals);
   document.getElementById("advise-section").style.display = "block";
   
   if (proposals.length === 0) {
-    status.textContent = "Status: No vulnerabilities triaged.";
+    setPipelineStatus("NO FINDINGS");
     await autoGenerateReport(target);
     return;
   }
   
   // 3. Auto execute each proposal
-  setStep(3);
   for (let i = 0; i < proposals.length; i++) {
     const p = proposals[i];
-    status.textContent = `Status: Running active inspection ${i+1} of ${proposals.length} (${p.proposed_tool_id})...`;
+    setPipelineStatus(`EXECUTING ${i+1}/${proposals.length}`);
     
     if (p.approval_type === "not_executable") continue;
     
@@ -289,7 +256,7 @@ async function runAutomatedPipeline(target, ports) {
     
     const resultBox = document.getElementById(`result-${p.proposed_tool_id}`);
     if (resultBox) {
-      resultBox.textContent = `[+] Executing inspection '${p.proposed_tool_id}'...`;
+      resultBox.textContent = `> Running inspection '${p.proposed_tool_id}'...`;
     }
     
     const execResp = await fetch("/api/execute", {
@@ -304,14 +271,11 @@ async function runAutomatedPipeline(target, ports) {
   }
   
   // 4. Auto-generate report
-  setStep(4);
-  status.textContent = "Status: Compiling executive report...";
+  setPipelineStatus("GENERATING REPORT");
   await autoGenerateReport(target);
 }
 
 async function autoGenerateReport(target) {
-  setStep(4);
-  const status = document.getElementById("status-indicator");
   const reportName = `Autonomous Audit - ${target}`;
   const reportInput = document.getElementById("engagement-name");
   if (reportInput) reportInput.value = reportName;
@@ -323,15 +287,13 @@ async function autoGenerateReport(target) {
   });
   const data = await resp.json();
   
-  status.style.color = "#10b981";
-  status.textContent = "Status: Audit Complete! Executive Report Generated.";
+  setPipelineStatus("PIPELINE COMPLETE");
   
   document.getElementById("report-section").style.display = "block";
   document.getElementById("report-output").textContent = "Executive Report Saved: " + data.report_path;
 }
 
 async function generateReport() {
-  setStep(4);
   const engagementName = document.getElementById("engagement-name").value.trim();
   const resp = await fetch("/api/report", {
     method: "POST",
