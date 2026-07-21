@@ -3,71 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KNULL</title>
+<title>KNULL Security Workbench</title>
 <link rel="stylesheet" href="/static/css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app-layout">
-    <!-- Clean Minimalist Header -->
+    <!-- Top Header -->
     <header class="app-header">
       <div class="brand">
         <svg class="skull-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2C7.03 2 3 6.03 3 11C3 13.84 4.32 16.37 6.38 18.04C6.77 18.35 7 18.83 7 19.33V20C7 21.1 7.9 22 9 22H15C16.1 22 17 21.1 17 20V19.33C17 18.83 17.23 18.35 17.62 18.04C19.68 16.37 21 13.84 21 11C21 6.03 16.97 2 12 2ZM9 10C8.17 10 7.5 9.33 7.5 8.5C7.5 7.67 8.17 7 9 7C9.83 7 10.5 7.67 10.5 8.5C10.5 9.33 9.83 10 9 10ZM15 10C14.17 10 13.5 9.33 13.5 8.5C13.5 7.67 14.17 7 15 7C15.83 7 16.5 7.67 16.5 8.5C16.5 9.33 15.83 10 15 10ZM10 17H14V19H10V17Z" fill="#ff003c"/>
         </svg>
-        <span class="logo-title">KNULL</span>
+        <span class="logo-title">KNULL <span class="badge-tag">SECURITY WORKBENCH</span></span>
       </div>
       <div class="header-status">
         <span id="pipeline-status" class="status-indicator">READY</span>
       </div>
     </header>
 
-    <!-- Compact No-Scroll Dashboard Content -->
+    <!-- Main Workspace -->
     <main class="main-content">
-      <!-- Input Controls Row -->
+      <!-- Target Input Control Bar -->
       <div class="control-row">
         <div class="input-wrap target-wrap">
-          <input id="target-input" type="text" placeholder="Target Host / IP (e.g. www.iacsd.com)" autocomplete="off">
+          <input id="target-input" type="text" placeholder="Target Hostname or IP (e.g. www.google.com)" autocomplete="off">
         </div>
         <div class="input-wrap ports-wrap">
           <input id="ports-input" type="text" placeholder="Ports (e.g. 80,443)">
         </div>
-        <button class="btn-audit" onclick="runScan()">AUDIT</button>
+        <button class="btn-audit" onclick="runScan()">START AUDIT</button>
       </div>
 
       <!-- Autonomous Pipeline Checkbox Bar -->
       <div class="auto-row">
         <label class="auto-label">
           <input id="auto-mode" type="checkbox" checked>
-          <span>AUTONOMOUS PIPELINE</span>
+          <span>AUTONOMOUS AUDIT PIPELINE</span>
         </label>
       </div>
 
-      <!-- Single Page Dual Console & Findings View -->
-      <div class="view-grid">
-        <!-- Live Terminal Stream -->
-        <div class="console-box">
-          <div class="box-header">
-            <span>CONSOLE STREAM</span>
-          </div>
-          <pre id="scan-output" class="console-body">> KNULL initialized. Enter target and click AUDIT.</pre>
-        </div>
-
-        <!-- Triaged Findings & Action Center -->
-        <div class="findings-box">
-          <div class="box-header">
-            <span>FINDINGS & ACTIONS</span>
-            <button class="btn-micro" onclick="getAdvice()">RE-TRIAGE</button>
-          </div>
-          <div id="advise-section" class="findings-scroll" style="display:none;">
-            <div id="proposals-list"></div>
-          </div>
-        </div>
+      <!-- Tab Navigation Bar -->
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('overview')">🌐 ATTACK SURFACE</button>
+        <button class="tab-btn" onclick="switchTab('headers')">🛡️ SECURITY HEADERS</button>
+        <button class="tab-btn" onclick="switchTab('findings')">🚨 TRIAGED FINDINGS</button>
+        <button class="tab-btn" onclick="switchTab('report')">📑 EXECUTIVE REPORT</button>
+        <button class="tab-btn" onclick="switchTab('console')">📟 TERMINAL STREAM</button>
       </div>
 
-      <!-- Compact Report Notification -->
-      <div id="report-section" class="report-bar" style="display:none;">
-        <span class="report-tag">REPORT SAVED:</span>
-        <span id="report-output" class="report-path"></span>
+      <!-- Tab Content Area -->
+      <div class="tab-container">
+        <!-- 1. Attack Surface Tab -->
+        <div id="tab-overview" class="tab-pane active">
+          <div class="cards-grid">
+            <div class="card">
+              <div class="card-header">OPEN SERVICES & PORTS</div>
+              <div id="services-list" class="card-body">
+                <div class="placeholder-text">Run scan to view discovered ports and services.</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">CRAWLED ENDPOINTS & DISCOVERIES</div>
+              <div id="endpoints-list" class="card-body">
+                <div class="placeholder-text">Probed administrative and API endpoints will appear here.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Security Headers Tab -->
+        <div id="tab-headers" class="tab-pane">
+          <div class="card full-width">
+            <div class="card-header">HTTP & TLS COMPLIANCE AUDIT</div>
+            <div id="headers-list" class="card-body">
+              <div class="placeholder-text">Security header compliance results will be displayed after scanning.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Triaged Findings Tab -->
+        <div id="tab-findings" class="tab-pane">
+          <div class="card full-width">
+            <div class="card-header">AI-TRIAGED FINDINGS & PROPOSAL QUEUE</div>
+            <div id="proposals-list" class="card-body">
+              <div class="placeholder-text">Triaged security proposals and diagnostic verification actions.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Executive Report Tab -->
+        <div id="tab-report" class="tab-pane">
+          <div class="card full-width">
+            <div class="card-header">EXECUTIVE REPORT & REMEDIATION DIRECTIVES</div>
+            <div id="report-content" class="card-body">
+              <div class="placeholder-text">Executive summary and remediation configurations will be rendered here.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Terminal Console Stream Tab -->
+        <div id="tab-console" class="tab-pane">
+          <div class="console-box">
+            <div class="box-header">CLI EXECUTION STREAM</div>
+            <pre id="scan-output" class="console-body">> KNULL Security Workbench Initialized. Enter target and click START AUDIT.</pre>
+          </div>
+        </div>
       </div>
     </main>
   </div>
