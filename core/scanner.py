@@ -169,10 +169,10 @@ def correlate_nvd(product: str, version: str) -> list:
     """
     Queries the NVD API for CVEs matching a product/version string.
     Returns a trimmed list of {cve_id, description, cvss_score}.
-    Rate-limited by NVD (5 req / 30s without a key, 50 req / 30s with one) --
-    callers should space out calls accordingly for multi-service scans.
     """
-    if not product:
+    # Exclude generic service names or missing versions to prevent hallucinated/broad CVE matches
+    generic_names = ("dns", "domain", "http", "https", "web server", "ftp", "smtp", "unknown", "")
+    if not product or product.lower().strip() in generic_names or not version:
         return []
 
     query = f"{product} {version}".strip()

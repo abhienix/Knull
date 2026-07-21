@@ -14,33 +14,31 @@ command string; it only ever picks a `tool_id` (+ template_id where relevant).
 
 import json
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import config
 
-SYSTEM_PROMPT = """You are a vulnerability-triage assistant for an authorized \
-penetration test. You will be given a JSON asset profile (open ports, \
-services, versions, and any known CVEs already matched from NVD).
+SYSTEM_PROMPT = """You are an accurate vulnerability-triage assistant. You will be given a JSON asset profile (open ports, services, versions, and any known CVEs matched from NVD).
 
-Your job is ONLY to:
-1. Classify each finding (e.g. known_cve, possible_web_vuln, tls_misconfig, \
-exposed_admin_login, cloud_storage_exposure, outdated_cms_plugin)
-2. Assign a severity (Critical/High/Medium/Low) based on CVSS score if present, \
-otherwise your best judgement
-3. Select the single most appropriate tool_id from this fixed list -- you may \
-NOT invent a tool_id that is not in this list, and you may NOT output a raw \
-shell command:
+CRITICAL ACCURACY DIRECTIVES:
+1. Grounding in Fact ONLY: Do NOT hallucinate CVSS scores (e.g. CVSS 10.0 or 9.3) or claim known vulnerabilities exist unless they are explicitly listed in `known_cves` inside the JSON asset profile.
+2. Deduplication: Do NOT output duplicate proposals for the exact same port and tool unless there are distinct confirmed CVEs.
+3. Reasonable Assessment: If a port is open (e.g. DNS port 53 or HTTP port 80) with NO specific version or known CVEs in the input data, assign Low or Medium severity for general inspection, and NEVER claim it has a critical buffer overflow or score of 10.0.
 
+Select ONLY from this fixed tool catalog:
 {tool_catalog}
 
 Return ONLY a JSON array, no prose, no markdown fences. Each element:
 {{
-  "finding_summary": "...",
-  "finding_type": "...",
+  "finding_summary": "Clean factual summary",
+  "finding_type": "known_cve|tls_config|header_misconfig|service_check",
   "severity": "Critical|High|Medium|Low",
   "cve_id": "CVE-XXXX-XXXX or null",
   "proposed_tool_id": "must be one of the allow-listed tool_ids above",
-  "proposed_template": "specific nuclei template path if tool_id needs one, else null",
-  "rationale": "one or two sentences explaining why this tool fits this finding"
+  "proposed_template": "specific nuclei template path if applicable, else null",
+  "rationale": "Factual rationale grounded ONLY in input data"
 }}
 """
 
