@@ -91,14 +91,32 @@ def generate_report(session: dict) -> str:
 
         lines.append("")
 
-    lines.append("## Remediation Guidance\n")
-    lines.append(
-        "Refer to each finding's linked CVE/advisory for vendor-specific "
-        "patches. General guidance: apply vendor patches promptly, disable "
-        "unused services, enforce strong authentication and rate limiting, "
-        "and use parameterized queries / output encoding for injection-class "
-        "findings.\n"
-    )
+    lines.append("## Remediation Guidance & Configuration Directives\n")
+    lines.append("### Recommended Nginx Security Configuration (`nginx.conf`)\n")
+    lines.append("```nginx")
+    lines.append("server {")
+    lines.append("    # Enforce Security Headers")
+    lines.append("    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;")
+    lines.append("    add_header X-Frame-Options \"SAMEORIGIN\" always;")
+    lines.append("    add_header X-Content-Type-Options \"nosniff\" always;")
+    lines.append("    add_header Content-Security-Policy \"default-src 'self'; script-src 'self' 'unsafe-inline';\" always;")
+    lines.append("    add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;")
+    lines.append("    server_tokens off;")
+    lines.append("}")
+    lines.append("```\n")
+
+    lines.append("### Recommended Apache Security Configuration (`.htaccess` / `httpd.conf`)\n")
+    lines.append("```apache")
+    lines.append("<IfModule mod_headers.c>")
+    lines.append("    Header always set Strict-Transport-Security \"max-age=31536000; includeSubDomains\"")
+    lines.append("    Header always set X-Frame-Options \"SAMEORIGIN\"")
+    lines.append("    Header always set X-Content-Type-Options \"nosniff\"")
+    lines.append("    Header always set Content-Security-Policy \"default-src 'self';\"")
+    lines.append("    Header always set Referrer-Policy \"strict-origin-when-cross-origin\"")
+    lines.append("</IfModule>")
+    lines.append("ServerSignature Off")
+    lines.append("ServerTokens Prod")
+    lines.append("```\n")
 
     lines.append("## Assessment Note\n")
     lines.append(

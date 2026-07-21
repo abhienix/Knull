@@ -40,6 +40,46 @@ COMMON_PORTS = {
 }
 
 
+def crawl_endpoints(target_host: str, proto: str = "https") -> list:
+    """Probes common web administrative & API endpoints."""
+    endpoints = [
+        "/robots.txt", "/sitemap.xml", "/.env", "/.git/HEAD",
+        "/api/v1", "/swagger.json", "/api-docs", "/admin", "/login"
+    ]
+    discovered = []
+    base_url = f"{proto}://{target_host}"
+    
+    for ep in endpoints:
+        try:
+            r = requests.get(f"{base_url}{ep}", timeout=2.0, verify=False, allow_redirects=False)
+            if r.status_code in (200, 301, 302, 403):
+                discovered.append({"endpoint": ep, "status_code": r.status_code, "content_type": r.headers.get("Content-Type", "")[:30]})
+        except Exception:
+            pass
+    return discovered
+
+
+def check_cors(target_host: str, proto: str = "https") -> dict:
+    """Tests CORS origin reflection configuration."""
+    base_url = f"{proto}://{target_host}/"
+    test_origin = "https://evil-attacker-domain.com"
+    try:
+        r = requests.options(base_url, headers={"Origin": test_origin, "Access-Control-Request-Method": "GET"}, timeout=2.5, verify=False)
+        allowed_origin = r.headers.get("Access-Control-Allow-Origin", "")
+        allow_credentials = r.headers.get("Access-Control-Allow-Credentials", "false")
+        
+        if allowed_origin == test_origin or allowed_origin == "*":
+            return {
+                "vulnerable": True,
+                "allowed_origin": allowed_origin,
+                "allow_credentials": allow_credentials,
+                "impact": "Wildcard/Reflected CORS policy allows arbitrary domains to read response data."
+            }
+    except Exception:
+        pass
+    return {"vulnerable": False}
+
+
 def _check_port(target_host: str, port: int) -> dict:
     """Connect to a target port, grab banner if possible, and extract HTTP headers if web port."""
     try:
@@ -110,10 +150,20 @@ def run_native_python_scan(target: str, ports: str = "1-1000") -> dict:
             if res:
                 open_services.append(res)
                 
+    # Run endpoint crawler & CORS inspection if web ports present
+    web_endpoints = []
+    cors_info = {"vulnerable": False}
+    if any(s.get("port") in ("80", "443", "8080", "8443") for s in open_services):
+        proto = "https" if any(s.get("port") in ("443", "8443") for s in open_services) else "http"
+        web_endpoints = crawl_endpoints(clean_host, proto)
+        cors_info = check_cors(clean_host, proto)
+
     return {
         "target": target,
         "scan_engine": "Native Python Network Inspector",
-        "open_services": open_services
+        "open_services": open_services,
+        "web_endpoints": web_endpoints,
+        "cors_analysis": cors_info
     }
 
 

@@ -42,6 +42,8 @@ async function runScan() {
 
   currentSessionId = data.session_id;
   const openSvcs = data.asset_profile.open_services || [];
+  const endpoints = data.asset_profile.web_endpoints || [];
+  const cors = data.asset_profile.cors_analysis || {};
 
   let outputText = `[+] Native Network Inspection Complete for ${target}\n`;
   outputText += `[+] Engine: ${data.asset_profile.scan_engine || 'Native Python Inspector'}\n`;
@@ -50,6 +52,17 @@ async function runScan() {
   openSvcs.forEach(svc => {
     outputText += `  - Port ${svc.port}/${svc.protocol}: Service [${svc.service}] Product: [${svc.product}] Version: [${svc.version}]\n`;
   });
+
+  if (endpoints.length > 0) {
+    outputText += `\n[+] Crawled & Probed Endpoints (${endpoints.length}):\n`;
+    endpoints.forEach(ep => {
+      outputText += `  - ${ep.endpoint} (Status: ${ep.status_code})\n`;
+    });
+  }
+
+  if (cors.vulnerable) {
+    outputText += `\n[!] CORS Configuration Finding:\n  - Reflected Origin: ${cors.allowed_origin} (Credentials: ${cors.allow_credentials})\n`;
+  }
 
   out.textContent = outputText;
   setPipelineStatus("RECON COMPLETE");
@@ -198,12 +211,26 @@ async function runAutomatedPipeline(target, ports) {
   
   currentSessionId = scanData.session_id;
   const openSvcs = scanData.asset_profile.open_services || [];
+  const endpoints = scanData.asset_profile.web_endpoints || [];
+  const cors = scanData.asset_profile.cors_analysis || {};
 
   let outputText = `[+] Native Network Inspection Complete for ${target}\n`;
   outputText += `[+] Discovered Open Ports: ${openSvcs.length}\n\n`;
   openSvcs.forEach(svc => {
     outputText += `  - Port ${svc.port}/${svc.protocol}: Service [${svc.service}] Product: [${svc.product}] Version: [${svc.version}]\n`;
   });
+
+  if (endpoints.length > 0) {
+    outputText += `\n[+] Crawled & Probed Endpoints (${endpoints.length}):\n`;
+    endpoints.forEach(ep => {
+      outputText += `  - ${ep.endpoint} (Status: ${ep.status_code})\n`;
+    });
+  }
+
+  if (cors.vulnerable) {
+    outputText += `\n[!] CORS Configuration Finding:\n  - Reflected Origin: ${cors.allowed_origin} (Credentials: ${cors.allow_credentials})\n`;
+  }
+
   out.textContent = outputText;
   
   // 2. Get AI proposals
