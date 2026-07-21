@@ -1,25 +1,12 @@
 let history = [];
 let currentSessionId = null;
 
-function appendMessage(sender, text) {
-  const container = document.getElementById("chat-messages");
-  if (!container) return;
+function appendTerminalLog(text) {
+  const term = document.getElementById("terminal-stream");
+  if (!term) return;
 
-  const div = document.createElement("div");
-  div.className = `msg ${sender}`;
-
-  const header = document.createElement("div");
-  header.className = "msg-header";
-  header.textContent = sender === "assistant" ? "💀 KNULL TERMINAL ASSISTANT" : "> OPERATOR_INPUT";
-
-  const body = document.createElement("div");
-  body.className = "msg-body";
-  body.innerHTML = text.replace(/\n/g, "<br>").replace(/`([^`]+)`/g, "<code>$1</code>");
-
-  div.appendChild(header);
-  div.appendChild(body);
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
+  term.textContent += "\n" + text;
+  term.scrollTop = term.scrollHeight;
 }
 
 async function sendMessage() {
@@ -29,15 +16,19 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  appendMessage("user", text);
+  // Print prompt command line to stream
+  appendTerminalLog(`knull@security:~$ ${text}`);
   input.value = "";
   history.push({ role: "user", content: text });
 
-  // Auto-extract domain or IP from message e.g. "www.google.com" or "scan google.com"
+  // Check domain/IP input e.g. "www.google.com" or "scan www.iacsd.com"
   const domainMatch = text.match(/(?:[a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}/i);
   if (domainMatch) {
     const target = domainMatch[0];
-    appendMessage("assistant", `[+] Initiating active native security inspection against target: \`${target}\`...\n[+] Probing socket ports, crawling endpoints, and evaluating TLS configuration...`);
+    document.getElementById("term-session").textContent = `SESSION: ACTIVE [${target}]`;
+    
+    appendTerminalLog(`> Initiating active native security inspection against target: ${target}`);
+    appendTerminalLog(`> Phase 1: Probing socket ports and grabbing service banners...`);
     
     try {
       const resp = await fetch("/api/scan", {
@@ -48,7 +39,7 @@ async function sendMessage() {
       const data = await resp.json();
 
       if (data.error) {
-        appendMessage("assistant", `[-] Error executing scan: ${data.error}`);
+        appendTerminalLog(`[-] ERROR: ${data.error}`);
         return;
       }
 
@@ -56,26 +47,60 @@ async function sendMessage() {
       const profile = data.asset_profile;
       const openSvcs = profile.open_services || [];
       const endpoints = profile.web_endpoints || [];
+      const cors = profile.cors_analysis || {};
 
-      let scanSummary = `[+] RECON COMPLETED FOR \`${target}\`:\n`;
-      scanSummary += `  - Discovered Open Ports (${openSvcs.length}):\n`;
+      appendTerminalLog(`[+] Phase 1 Complete for ${target}`);
+      appendTerminalLog(`[+] Open Ports Discovered (${openSvcs.length}):`);
       openSvcs.forEach(s => {
-        scanSummary += `    * Port ${s.port}/${s.protocol}: ${s.service} (${s.product} ${s.version})\n`;
+        appendTerminalLog(`    - Port ${s.port}/${s.protocol}: Service [${s.service}] Product: [${s.product}] Version: [${s.version || 'Unspecified'}]`);
       });
+
       if (endpoints.length > 0) {
-        scanSummary += `  - Crawled Web Endpoints (${endpoints.length}):\n`;
+        appendTerminalLog(`\n[+] Phase 2: Crawling Web Administrative & API Endpoints (${endpoints.length}):`);
         endpoints.forEach(e => {
-          scanSummary += `    * ${e.endpoint} [Status: ${e.status_code}]\n`;
+          appendTerminalLog(`    - Endpoint Discovered: ${e.endpoint} (HTTP Status Code: ${e.status_code})`);
         });
       }
-      scanSummary += `\nI have triaged this target profile. Reply with "triage" to see recommended verification actions, or ask me any question about this target.`;
-      appendMessage("assistant", scanSummary);
-      history.push({ role: "assistant", content: scanSummary });
-      return;
+
+      if (cors.vulnerable) {
+        appendTerminalLog(`\n[!] CORS Configuration Warning:\n    - Reflected Origin: ${cors.allowed_origin} (Credentials: ${cors.allow_credentials})`);
+      }
+
+      // Auto-trigger AI Triage Phase
+      appendTerminalLog(`\n> Phase 3: Querying Groq AI Reasoning Engine for vulnerability triaging...`);
+      const adviseResp = await fetch("/api/advise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: currentSessionId }),
+      });
+      const adviseData = await adviseResp.json();
+      const proposals = adviseData.proposals || [];
+
+      if (proposals.length === 0) {
+        appendTerminalLog(`[+] AI Triage Complete: No critical vulnerabilities triaged.`);
+      } else {
+        appendTerminalLog(`[+] AI Triage Complete: Discovered ${proposals.length} Action Proposals:`);
+        proposals.forEach((p, idx) => {
+          appendTerminalLog(`\n    [Action ${idx + 1}] ${p.finding_summary} (${p.severity.toUpperCase()})`);
+          appendTerminalLog(`    * Proposed Tool: ${p.proposed_tool_id} (Tier ${p.tier})`);
+          appendTerminalLog(`    * Rationale: ${p.rationale}`);
+        });
+      }
+
+      // Auto-generate report
+      appendTerminalLog(`\n> Phase 4: Compiling executive report & remediation directives...`);
+      const rptResp = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: currentSessionId, engagement_name: `Audit - ${target}` }),
+      });
+      const rptData = await rptResp.json();
+      appendTerminalLog(`[+] AUDIT COMPLETE! Executive report saved: ${rptData.report_path}`);
+
     } catch (e) {
-      appendMessage("assistant", `[-] Network request failed: ${e.message}`);
-      return;
+      appendTerminalLog(`[-] Network execution error: ${e.message}`);
     }
+    return;
   }
 
   // Conversational response via Groq AI engine
@@ -92,9 +117,9 @@ async function sendMessage() {
     const data = await chatResp.json();
     const reply = data.response || "No response generated.";
 
-    appendMessage("assistant", reply);
+    appendTerminalLog(`> ${reply}`);
     history.push({ role: "assistant", content: reply });
   } catch (e) {
-    appendMessage("assistant", `[-] Chat error: ${e.message}`);
+    appendTerminalLog(`[-] Chat error: ${e.message}`);
   }
 }

@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KNULL Security AI Assistant</title>
+<title>KNULL Security Terminal</title>
 <link rel="stylesheet" href="/static/css/style.css">
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app-layout">
@@ -15,32 +15,30 @@
         <svg class="skull-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2C7.03 2 3 6.03 3 11C3 13.84 4.32 16.37 6.38 18.04C6.77 18.35 7 18.83 7 19.33V20C7 21.1 7.9 22 9 22H15C16.1 22 17 21.1 17 20V19.33C17 18.83 17.23 18.35 17.62 18.04C19.68 16.37 21 13.84 21 11C21 6.03 16.97 2 12 2ZM9 10C8.17 10 7.5 9.33 7.5 8.5C7.5 7.67 8.17 7 9 7C9.83 7 10.5 7.67 10.5 8.5C10.5 9.33 9.83 10 9 10ZM15 10C14.17 10 13.5 9.33 13.5 8.5C13.5 7.67 14.17 7 15 7C15.83 7 16.5 7.67 16.5 8.5C16.5 9.33 15.83 10 15 10ZM10 17H14V19H10V17Z" fill="#ff003c"/>
         </svg>
-        <span class="logo-title">KNULL <span class="badge-tag">AI ASSISTANT</span></span>
+        <span class="logo-title">KNULL // TERMINAL</span>
       </div>
       <div class="header-status">
-        <span id="pipeline-status" class="status-indicator">ONLINE</span>
+        <span id="pipeline-status" class="status-indicator">SYS_ONLINE</span>
       </div>
     </header>
 
-    <!-- Unified Chat Interface Box -->
+    <!-- Single Full-Screen Interactive CLI Terminal -->
     <main class="main-content">
-      <div class="chat-container">
-        <!-- Messages Stream -->
-        <div id="chat-messages" class="messages-stream">
-          <div class="msg assistant">
-            <div class="msg-header">💀 KNULL AI ASSISTANT</div>
-            <div class="msg-body">
-              Hello, Operator. I am Knull, your AI Penetration Testing Assistant.
-              <br><br>
-              Type a target to scan (e.g. <code>scan www.google.com</code>) or ask me to analyze vulnerability findings, verify SSL/headers, or run a diagnostic test.
-            </div>
-          </div>
+      <div class="terminal-container">
+        <div class="terminal-bar">
+          <span>KNULL_CLI_INTERACTIVE_STREAM v3.0</span>
+          <span id="term-session">SESSION: IDLE</span>
         </div>
-
-        <!-- Input Box Area -->
-        <div class="chat-input-bar">
-          <input id="chat-input" type="text" placeholder="Talk to Knull... (e.g. 'scan www.google.com', 'what vulnerabilities did we find?')" autocomplete="off" onkeydown="if(event.key==='Enter') sendMessage()">
-          <button class="btn-send" onclick="sendMessage()">SEND</button>
+        
+        <!-- Live Terminal Stream Output -->
+        <pre id="terminal-stream" class="terminal-body">> Knull Interactive Security Terminal initialized.
+> Type target domain (e.g. www.google.com or scan www.iacsd.com) to initiate live backend recon execution.</pre>
+        
+        <!-- Single Command Line Prompt -->
+        <div class="terminal-prompt-bar">
+          <span class="prompt-symbol">knull@security:~$</span>
+          <input id="chat-input" type="text" placeholder="Type target domain or command..." autocomplete="off" autofocus onkeydown="if(event.key==='Enter') sendMessage()">
+          <button class="btn-send" onclick="sendMessage()">RUN</button>
         </div>
       </div>
     </main>
