@@ -3,68 +3,74 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KNULL // AUDIT CONSOLE</title>
+<title>KNULL</title>
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-  <!-- Header with Glowing Red Skull -->
-  <header>
-    <div class="brand-row">
-      <!-- Red Glowing Skull SVG -->
-      <svg class="skull-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2C7.03 2 3 6.03 3 11C3 13.84 4.32 16.37 6.38 18.04C6.77 18.35 7 18.83 7 19.33V20C7 21.1 7.9 22 9 22H15C16.1 22 17 21.1 17 20V19.33C17 18.83 17.23 18.35 17.62 18.04C19.68 16.37 21 13.84 21 11C21 6.03 16.97 2 12 2ZM9 10C8.17 10 7.5 9.33 7.5 8.5C7.5 7.67 8.17 7 9 7C9.83 7 10.5 7.67 10.5 8.5C10.5 9.33 9.83 10 9 10ZM15 10C14.17 10 13.5 9.33 13.5 8.5C13.5 7.67 14.17 7 15 7C15.83 7 16.5 7.67 16.5 8.5C16.5 9.33 15.83 10 15 10ZM10 17H14V19H10V17Z" fill="#ff003c"/>
-      </svg>
-      <div>
-        <h1 class="app-title">KNULL // AUDIT CONSOLE</h1>
-        <span class="app-subtitle">NATIVE NATIVE DIAGNOSTIC INSPECTION & RECON ENGINE</span>
+  <div class="app-layout">
+    <!-- Clean Minimalist Header -->
+    <header class="app-header">
+      <div class="brand">
+        <svg class="skull-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C7.03 2 3 6.03 3 11C3 13.84 4.32 16.37 6.38 18.04C6.77 18.35 7 18.83 7 19.33V20C7 21.1 7.9 22 9 22H15C16.1 22 17 21.1 17 20V19.33C17 18.83 17.23 18.35 17.62 18.04C19.68 16.37 21 13.84 21 11C21 6.03 16.97 2 12 2ZM9 10C8.17 10 7.5 9.33 7.5 8.5C7.5 7.67 8.17 7 9 7C9.83 7 10.5 7.67 10.5 8.5C10.5 9.33 9.83 10 9 10ZM15 10C14.17 10 13.5 9.33 13.5 8.5C13.5 7.67 14.17 7 15 7C15.83 7 16.5 7.67 16.5 8.5C16.5 9.33 15.83 10 15 10ZM10 17H14V19H10V17Z" fill="#ff003c"/>
+        </svg>
+        <span class="logo-title">KNULL</span>
       </div>
-    </div>
-    <div>
-      <span class="badge-red" id="sys-status">SYS_ONLINE</span>
-    </div>
-  </header>
-
-  <!-- Mobile-Friendly Single Page Main Panel -->
-  <main class="container">
-    <div class="panel">
-      <!-- Target Input Control Bar -->
-      <div class="control-bar">
-        <input id="target-input" type="text" placeholder="Target Host or IP (e.g. www.iacsd.com)">
-        <input id="ports-input" type="text" placeholder="Ports (e.g. 80,443)" style="max-width: 140px;">
-        <button class="btn-red" onclick="runScan()">RUN AUDIT</button>
+      <div class="header-status">
+        <span id="pipeline-status" class="status-indicator">READY</span>
       </div>
+    </header>
 
-      <!-- Autonomous Pipeline Checkbox -->
-      <label class="auto-toggle">
-        <input id="auto-mode" type="checkbox" checked>
-        <span>ENABLE FULL AUTONOMOUS PIPELINE</span>
-      </label>
-
-      <!-- Live CLI Terminal Output -->
-      <div class="cli-window">
-        <div class="cli-bar">
-          <span>KNULL_CLI_TERMINAL v2.0</span>
-          <span id="pipeline-status">READY</span>
+    <!-- Compact No-Scroll Dashboard Content -->
+    <main class="main-content">
+      <!-- Input Controls Row -->
+      <div class="control-row">
+        <div class="input-wrap target-wrap">
+          <input id="target-input" type="text" placeholder="Target Host / IP (e.g. www.iacsd.com)" autocomplete="off">
         </div>
-        <pre id="scan-output" class="cli-body">> System initialized. Enter target host and click RUN AUDIT to begin.</pre>
-      </div>
-
-      <!-- Findings List Drawer -->
-      <div id="advise-section" class="findings-container" style="display:none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3 style="font-size: 14px; color: #fff;">[!] TRIAGED FINDINGS & ACTION PROPOSALS</h3>
-          <button class="btn-subtle" onclick="getAdvice()">RE-TRIAGE AI</button>
+        <div class="input-wrap ports-wrap">
+          <input id="ports-input" type="text" placeholder="Ports (e.g. 80,443)">
         </div>
-        <div id="proposals-list"></div>
+        <button class="btn-audit" onclick="runScan()">AUDIT</button>
       </div>
 
-      <!-- Final Executive Report Link -->
-      <div id="report-section" style="display:none; margin-top: 16px; padding: 12px; background: rgba(255, 0, 60, 0.08); border: 1px solid var(--red-border); border-radius: 8px;">
-        <div style="font-size: 12px; color: var(--red-primary); font-weight: 700; margin-bottom: 6px;">[+] EXECUTIVE AUDIT REPORT GENERATED</div>
-        <div id="report-output" style="font-size: 12px; color: #fff;"></div>
+      <!-- Autonomous Pipeline Checkbox Bar -->
+      <div class="auto-row">
+        <label class="auto-label">
+          <input id="auto-mode" type="checkbox" checked>
+          <span>AUTONOMOUS PIPELINE</span>
+        </label>
       </div>
-    </div>
-  </main>
+
+      <!-- Single Page Dual Console & Findings View -->
+      <div class="view-grid">
+        <!-- Live Terminal Stream -->
+        <div class="console-box">
+          <div class="box-header">
+            <span>CONSOLE STREAM</span>
+          </div>
+          <pre id="scan-output" class="console-body">> KNULL initialized. Enter target and click AUDIT.</pre>
+        </div>
+
+        <!-- Triaged Findings & Action Center -->
+        <div class="findings-box">
+          <div class="box-header">
+            <span>FINDINGS & ACTIONS</span>
+            <button class="btn-micro" onclick="getAdvice()">RE-TRIAGE</button>
+          </div>
+          <div id="advise-section" class="findings-scroll" style="display:none;">
+            <div id="proposals-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compact Report Notification -->
+      <div id="report-section" class="report-bar" style="display:none;">
+        <span class="report-tag">REPORT SAVED:</span>
+        <span id="report-output" class="report-path"></span>
+      </div>
+    </main>
+  </div>
 
   <script src="/static/js/app.js"></script>
 </body>

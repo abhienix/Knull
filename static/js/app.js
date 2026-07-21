@@ -35,7 +35,7 @@ async function runScan() {
   const data = await resp.json();
 
   if (data.error) {
-    setPipelineStatus("SCAN FAILED", true);
+    setPipelineStatus("SCAN ERROR", true);
     out.textContent = "[-] Error during scan: " + data.error;
     return;
   }
@@ -57,7 +57,7 @@ async function runScan() {
 }
 
 async function getAdvice() {
-  setPipelineStatus("TRIAGING AI...");
+  setPipelineStatus("AI TRIAGING...");
   const resp = await fetch("/api/advise", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -75,23 +75,23 @@ function renderProposals(proposals) {
   const container = document.getElementById("proposals-list");
   container.innerHTML = "";
 
-  proposals.forEach((p) => {
+  proposals.forEach((p, idx) => {
     const div = document.createElement("div");
-    div.className = "finding-card";
+    div.className = "finding-item";
 
     let approvalControls = "";
     if (p.approval_type === "one_click" || p.approval_type === "one_click_with_warning") {
       approvalControls = `
-        <button class="btn-red" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', false)">EXECUTE DIAGNOSTIC</button>
-        <button class="btn-subtle" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">REJECT</button>`;
+        <button class="btn-red" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', false, ${idx})">EXECUTE DIAGNOSTIC</button>
+        <button class="btn-micro" onclick="reject('${p.proposed_tool_id}', ${idx})" style="margin-left: 8px;">REJECT</button>`;
     } else if (p.approval_type === "typed_confirmation") {
       approvalControls = `
-        <p style="color: var(--red-primary); font-weight: 600; font-size: 12px; margin-bottom: 6px;">[!] Tier-3 Action: Confirm target hostname:</p>
-        <input type="text" id="confirm-${p.proposed_tool_id}" placeholder="Type target exactly" style="margin-right: 8px; max-width: 200px;">
-        <button class="btn-red" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', true)">CONFIRM & EXECUTE</button>
-        <button class="btn-subtle" onclick="reject('${p.proposed_tool_id}')" style="margin-left: 8px;">REJECT</button>`;
+        <p style="color: var(--red-main); font-weight: 600; font-size: 11px; margin-bottom: 6px;">[!] Tier-3 Action: Confirm target hostname:</p>
+        <input type="text" id="confirm-${idx}" placeholder="Type target exactly" style="margin-right: 8px; max-width: 200px;">
+        <button class="btn-red" onclick="approveAndRun('${p.proposed_tool_id}', '${p.proposed_template || ""}', true, ${idx})">CONFIRM & EXECUTE</button>
+        <button class="btn-micro" onclick="reject('${p.proposed_tool_id}', ${idx})" style="margin-left: 8px;">REJECT</button>`;
     } else if (p.approval_type === "not_executable") {
-      approvalControls = `<p style="color: var(--text-muted); font-style: italic; font-size: 12px;">Manual Step Only — Not auto-executed by Knull.</p>`;
+      approvalControls = `<p style="color: var(--text-muted); font-style: italic; font-size: 11px;">Manual Step Only — Not auto-executed by Knull.</p>`;
     }
 
     div.innerHTML = `
@@ -99,23 +99,23 @@ function renderProposals(proposals) {
         <span class="finding-title">${p.finding_summary}</span>
         <span class="badge-red">${p.severity}</span>
       </div>
-      <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0;">
-        <strong>Tool:</strong> <code style="color: var(--red-primary);">${p.proposed_tool_id}</code> | <strong>Tier:</strong> ${p.tier}
+      <p class="finding-desc">
+        <strong>Tool:</strong> <code style="color: var(--red-main);">${p.proposed_tool_id}</code> | <strong>Tier:</strong> ${p.tier}
       </p>
-      <p style="font-size: 13px; margin: 8px 0; color: #e2e8f0; line-height: 1.4;">${p.rationale}</p>
-      <div style="margin-top: 10px;">${approvalControls}</div>
-      <div class="cli-window" style="margin-top: 10px;">
+      <p style="font-size: 12px; margin: 6px 0; color: #e2e8f0; line-height: 1.4;">${p.rationale}</p>
+      <div style="margin-top: 8px;">${approvalControls}</div>
+      <div class="cli-window" style="margin-top: 8px;">
         <div class="cli-bar">
           <span>OUTPUT // ${p.proposed_tool_id}</span>
         </div>
-        <pre id="result-${p.proposed_tool_id}" class="cli-body">> Standby for execution...</pre>
+        <pre id="result-${idx}" class="cli-body">> Standby for execution...</pre>
       </div>
     `;
     container.appendChild(div);
   });
 }
 
-async function approveAndRun(toolId, template, needsTypedConfirm) {
+async function approveAndRun(toolId, template, needsTypedConfirm, idx) {
   setPipelineStatus("EXECUTING...");
   await fetch("/api/approve", {
     method: "POST",
@@ -136,11 +136,11 @@ async function approveAndRun(toolId, template, needsTypedConfirm) {
   };
 
   if (needsTypedConfirm) {
-    const confirmInput = document.getElementById(`confirm-${toolId}`);
+    const confirmInput = document.getElementById(`confirm-${idx}`);
     payload.typed_confirmation = confirmInput ? confirmInput.value.trim() : "";
   }
 
-  const resultBox = document.getElementById(`result-${toolId}`);
+  const resultBox = document.getElementById(`result-${idx}`);
   if (resultBox) {
     resultBox.textContent = `> Executing diagnostic inspection engine for '${toolId}'...`;
   }
@@ -157,7 +157,7 @@ async function approveAndRun(toolId, template, needsTypedConfirm) {
   setPipelineStatus("EXECUTION FINISHED");
 }
 
-async function reject(toolId) {
+async function reject(toolId, idx) {
   await fetch("/api/approve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -168,7 +168,7 @@ async function reject(toolId) {
       approved_by: "operator",
     }),
   });
-  const resultBox = document.getElementById(`result-${toolId}`);
+  const resultBox = document.getElementById(`result-${idx}`);
   if (resultBox) {
     resultBox.textContent = "> Action rejected by operator.";
   }
@@ -225,7 +225,7 @@ async function runAutomatedPipeline(target, ports) {
     return;
   }
   
-  // 3. Auto execute each proposal
+  // 3. Auto execute each proposal with unique idx
   for (let i = 0; i < proposals.length; i++) {
     const p = proposals[i];
     setPipelineStatus(`EXECUTING ${i+1}/${proposals.length}`);
@@ -254,7 +254,7 @@ async function runAutomatedPipeline(target, ports) {
       payload.typed_confirmation = target;
     }
     
-    const resultBox = document.getElementById(`result-${p.proposed_tool_id}`);
+    const resultBox = document.getElementById(`result-${i}`);
     if (resultBox) {
       resultBox.textContent = `> Running inspection '${p.proposed_tool_id}'...`;
     }
@@ -290,7 +290,7 @@ async function autoGenerateReport(target) {
   setPipelineStatus("PIPELINE COMPLETE");
   
   document.getElementById("report-section").style.display = "block";
-  document.getElementById("report-output").textContent = "Executive Report Saved: " + data.report_path;
+  document.getElementById("report-output").textContent = data.report_path;
 }
 
 async function generateReport() {
@@ -301,5 +301,5 @@ async function generateReport() {
     body: JSON.stringify({ session_id: currentSessionId, engagement_name: engagementName }),
   });
   const data = await resp.json();
-  document.getElementById("report-output").textContent = "Executive Report Saved: " + data.report_path;
+  document.getElementById("report-output").textContent = data.report_path;
 }
