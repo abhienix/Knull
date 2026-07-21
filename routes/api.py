@@ -126,12 +126,15 @@ def execute():
 
 @api.route("/api/report", methods=["POST"])
 def build_report():
-    data = request.get_json()
+    data = request.get_json() or {}
     session_id = data.get("session_id")
     session = SESSIONS.get(session_id)
     if not session:
         return jsonify({"error": "Unknown session_id"}), 404
 
     session["engagement_name"] = data.get("engagement_name", "Unnamed Engagement")
-    path = report.generate_report(session)
-    return jsonify({"report_path": path})
+    try:
+        path = report.generate_report(session)
+        return jsonify({"report_path": path})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

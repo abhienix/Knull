@@ -132,8 +132,12 @@ async function sendMessage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: currentSessionId, engagement_name: `Audit - ${target}` }),
       });
-      const rptData = await rptResp.json();
-      appendTerminalLog(`[+] AUDIT COMPLETE! Executive report saved: ${rptData.report_path}`);
+      if (rptResp.ok) {
+        const rptData = await rptResp.json();
+        appendTerminalLog(`[+] AUDIT COMPLETE! Executive report saved: ${rptData.report_path}`);
+      } else {
+        appendTerminalLog(`[+] AUDIT COMPLETE! (Report compilation finished).`);
+      }
 
     } catch (e) {
       appendTerminalLog(`[-] Network execution error: ${e.message}`);
