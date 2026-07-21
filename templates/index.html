@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Knull - AI-Assisted VAPT Assistant</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header>
+    <h1>Knull</h1>
+    <p class="tagline">AI-assisted recon, triage, and human-gated verification.</p>
+  </header>
+
+  <main>
+    <section id="scan-section" class="card">
+      <h2>1. Scan a target</h2>
+      <input id="target-input" type="text" placeholder="e.g. 10.0.0.5 or app.test-domain.com">
+      <input id="ports-input" type="text" placeholder="Ports (default 1-1000)">
+      <button onclick="runScan()">Run Recon Scan</button>
+      <pre id="scan-output"></pre>
+    </section>
+
+    <section id="advise-section" class="card" style="display:none;">
+      <h2>2. AI-proposed next steps</h2>
+      <button onclick="getAdvice()">Ask Knull to analyze findings</button>
+      <div id="proposals-list"></div>
+    </section>
+
+    <section id="report-section" class="card" style="display:none;">
+      <h2>3. Generate report</h2>
+      <input id="engagement-name" type="text" placeholder="Engagement name">
+      <button onclick="generateReport()">Generate Report</button>
+      <div id="report-output"></div>
+    </section>
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
